@@ -1,0 +1,10 @@
+setup.py
+JMESpand.egg-info/PKG-INFO
+JMESpand.egg-info/SOURCES.txt
+JMESpand.egg-info/dependency_links.txt
+JMESpand.egg-info/requires.txt
+JMESpand.egg-info/top_level.txt
+JMESpand.egg-info/zip-safe
+jmespand/__init__.py
+jmespand/_formatter.py
+jmespand/root.py
