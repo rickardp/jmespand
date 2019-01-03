@@ -75,19 +75,19 @@ class RootTests(unittest.TestCase):
         d = {"Value": 42, "Hello": "{Hello}"}
         root = jmespand.create_root(d)
         with self.assertRaises(ValueError): # Expects to throw ValueError when cyclic reference found
-            ret = root.expanded()
+            root.expanded()
 
     def test_expand_cycles(self):
         d = {"Value": "{Hello}", "Hello": "{World}", "World": "{Value}"}
         root = jmespand.create_root(d)
         with self.assertRaises(ValueError): # Expects to throw ValueError when cyclic reference found
-            ret = root.expanded()
+            root.expanded()
 
     def test_expand_undefined(self):
         d = {"Value": "{Hello}"}
         root = jmespand.create_root(d)
         with self.assertRaises(KeyError): # Expects to throw KeyError when not found
-            ret = root.expanded()
+            root.expanded()
 
     def test_expand_with_scope(self):
         d = {"Value": "{X}", "Hello": "{Y}", "World": "{Value}", "Value2": "{Value}", "Test": "{Value2}"}
@@ -101,7 +101,7 @@ class RootTests(unittest.TestCase):
         root = jmespand.create_root()
         root.add(d, meta={"file":"test.json"})
         try:
-            ret = root.expanded()
+            root.expanded()
             self.assertFalse(True, "Did not throw")
         except KeyError as ke:
             self.assertIn("file test.json", str(ke))
@@ -111,8 +111,45 @@ class RootTests(unittest.TestCase):
         root.add({"Value": 42, "Hello": "{Value}"}, meta={"file":"test.json"})
         root.add({"Hello2": "{Nonexisting}"}, meta={"file":"test2.json"})
         try:
-            ret = root.expanded()
+            root.expanded()
             self.assertFalse(True, "Did not throw")
         except KeyError as ke:
             self.assertIn("file test2.json", str(ke))
             
+
+    def test_local_scope_fail(self):
+        d = {"root":{"Value": "42", "Hello": "{World}", "World": "{Value}"}}
+        root = jmespand.create_root(d)
+        with self.assertRaises(KeyError): # "root" subscope is not made local, variables unresolved
+            root.expanded()
+
+    def test_local_scope_adds_meta(self):
+        d = {"root":{"Value": "42", "Hello": "{World}", "World": "{Value}"}}
+        jmespand.add_local_scope(d, "root")
+        self.assertTrue(hasattr(d["root"], "_meta"), "Meta attribute never created")
+        root = jmespand.create_root(d)
+        ret = root._merged()
+        self.assertTrue(hasattr(ret["root"], "_meta"), "Meta attribute lost in merge")
+            
+
+    def test_local_scope_succ(self):
+        d = {"root":{"Value": "42", "Hello": "{World}", "World": "{Value}"}}
+        jmespand.add_local_scope(d, "root")
+        root = jmespand.create_root(d)
+        ret = root.expanded()
+        self.assertEqual({"root":{"Value": "42", "Hello": "42", "World": "42"}}, ret)
+
+    def test_custom_scope(self):
+        d = {"root":{"Value": "42", "Hello": "{World}", "World": "{Value}"}}
+        jmespand.add_scope(d, "root", {"Value": 43, "World":44})
+        root = jmespand.create_root(d)
+        ret = root.expanded()
+        self.assertEqual({"root":{"Value": "42", "Hello": "44", "World": "43"}}, ret)
+
+    def test_custom_scope_nested(self):
+        d = {"root":{"sub":{"Value": "42", "Hello": "{World}", "World": "{Value}"}}}
+        jmespand.add_scope(d, "root", {"Value": 43, "World":44})
+        jmespand.add_scope(d["root"], "sub", {"Value": 45})
+        root = jmespand.create_root(d)
+        ret = root.expanded()
+        self.assertEqual({"root":{"sub":{"Value": "42", "Hello": "44", "World": "45"}}}, ret)

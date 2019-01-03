@@ -40,16 +40,31 @@ class JmespandRoot(object):
             rscope.update(scope)
         else:
             rscope = ret
-        return self._expanded(ret, rscope)
+        return self._expanded(ret, rscope, None, None)
 
-    def _expanded(self, d, scope):
+    def _expanded(self, d, scope, addscope, localscope):
+        if hasattr(d, '_meta'):
+            newscope = d._meta.get("_scope", None)
+            if newscope and JmespandRoot._isdict(newscope):
+                if not addscope:
+                    addscope = newscope
+                else:
+                    addscope.update(newscope)
+            if d._meta.get("_localscope") and JmespandRoot._isdict(d):
+                localscope = d
         if JmespandRoot._isdict(d):
             ret = {}
             for key, value in d.items():
-                ret[key] = self._expanded(value, scope)
+                ret[key] = self._expanded(value, scope, addscope, localscope)
             return ret
         elif isinstance(d, _stringtype):
             if "{" in d:
+                if localscope:
+                    scope = dict(scope)
+                    scope.update(localscope)
+                if addscope:
+                    scope = dict(scope)
+                    scope.update(addscope)
                 try:
                     return _Formatter(False).format(d, **scope)
                 except RecursionError as exc:
@@ -89,7 +104,7 @@ class JmespandRoot(object):
                     s.append("at " + str(keypath))
 
                 for k, v in meta.items():
-                    if k == "keypath": continue
+                    if k == "keypath" or k.startswith("_"): continue
                     if v:
                         s.append(str(k) + " " + str(v))
         if not s:
@@ -104,25 +119,18 @@ class JmespandRoot(object):
 
     @staticmethod
     def _deepmerge(dest, src, meta):
-        def wrapvalue(val, meta=None):
-            if meta is None:
-                return val
-            t = type(val)
-            class _Wrapped(t):
-                _meta = None
-            wrapped = _Wrapped(val)
-            wrapped._meta = meta
-            return wrapped
-
         for key, value in src.items():
             if JmespandRoot._isdict(value):
                 d = dest.get(key)
                 if not isinstance(d, dict):
-                    d = dest[key] = wrapvalue({})
+                    meta = None
+                    if hasattr(value, '_meta'):
+                        meta = value._meta
+                    d = dest[key] = _wrapvalue({}, meta)
                 
                 JmespandRoot._deepmerge(d, value, meta)
             else:
-                dest[key] = wrapvalue(value, meta)
+                dest[key] = _wrapvalue(value, meta)
 
     @staticmethod
     def _isdict(val):
@@ -140,3 +148,35 @@ def create_root(*args):
     for arg in args:
         root.add(arg)
     return root
+        
+def _wrapvalue(val, meta=None):
+    if meta is None:
+        return val
+    if hasattr(val, '_meta'):
+        val._meta.update(meta)
+        return val
+    t = type(val)
+    class _Wrapped(t):
+        _meta = None
+    wrapped = _Wrapped(val)
+    wrapped._meta = meta
+    return wrapped
+
+def add_local_scope(obj, key):
+    """Modifies the object at the specified key to add a local scope (i.e. all descendants can resolve the keys of this object by name directly)
+
+    obj - The container object or array
+    key - The key at which to make the scope local
+    """
+    obj[key] = _wrapvalue(obj[key], {"_localscope":True})
+    return obj
+
+def add_scope(obj, key, scope):
+    """Modifies the object at the specified key to add a custom scope (i.e. all descendants can resolve the custom scope directly)
+
+    obj - The container object or array
+    key - The key at which to add to the scope
+    scope - The scope to set. Overrides any previous scope.
+    """
+    obj[key] = _wrapvalue(obj[key], {"_scope":scope})
+    return obj

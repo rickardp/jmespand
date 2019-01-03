@@ -14,7 +14,7 @@ setup(
     url="https://github.com/rickardp/jmespand",
     author="Rickard Lyrenius",
     author_email="rickard@evolviq.com",
-    version="0.1.0",
+    version="0.1.1",
     description="Configuration template expansion system using JMESpath",
     packages=['jmespand'],
     install_requires=requirements + test_requirements,

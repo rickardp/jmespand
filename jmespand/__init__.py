@@ -1,1 +1,1 @@
-from ._root import JmespandRoot, create_root
+from ._root import JmespandRoot, create_root, add_local_scope, add_scope
