@@ -71,7 +71,7 @@ class JmespandRoot(object):
                     if sys.version_info[0] < 3:
                         raise ex
                     else:
-                        exec("raise ex from exc", globals(), locals())
+                        exec("raise ex from None", globals(), locals())
 
         if type(d).__name__ == '_Wrapped' and hasattr(d, '_meta'):
             return type(d).__base__(d)

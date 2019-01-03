@@ -28,6 +28,15 @@ class RootTests(unittest.TestCase):
         self.assertEqual(42, ret["Value"]._meta["test"])
         self.assertEqual(43, ret["Hello"]._meta["test"])
 
+    def test_merge_meta_multi(self):
+        root = jmespand.create_root()
+        root.add({"Value": 42, "Hello": "{Hello2}"}, meta={"file":"test.json"})
+        root.add({"Hello2": "{Nonexisting}"}, meta={"file":"test2.json"})
+        ret = root._merged()
+        self.assertEqual("test.json", ret["Value"]._meta["file"])
+        self.assertEqual("test.json", ret["Hello"]._meta["file"])
+        self.assertEqual("test2.json", ret["Hello2"]._meta["file"])
+
     def test_expand_multi_doc_with_meta(self):
         d = {"Value": 42, "Hello": "World"}
         root = jmespand.create_root()
@@ -99,7 +108,7 @@ class RootTests(unittest.TestCase):
 
     def test_error_handling_with_meta_multi(self):
         root = jmespand.create_root()
-        root.add({"Value": 42, "Hello": "{Hello2}"}, meta={"file":"test.json"})
+        root.add({"Value": 42, "Hello": "{Value}"}, meta={"file":"test.json"})
         root.add({"Hello2": "{Nonexisting}"}, meta={"file":"test2.json"})
         try:
             ret = root.expanded()
