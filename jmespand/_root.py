@@ -8,15 +8,32 @@ else:
 from ._formatter import _Formatter
 
 class JmespandRoot(object):
+    """The main class of the JMESpand module. An instance of this class holds references
+    to all the documents (dicts) that make up the resolvable root.
+
+    The purpose of this class is to:
+    - Merge all document in the order of which they were added (later documents override earlier)
+    - Once merged, expands all bracketed expressions ({}) using JMESpath syntax
+    """
     def __init__(self):
         self._docs = []
 
     def add(self, doc, meta=None):
+        """Adds a document to the root, with optional metadata.
+
+        doc - The document to add
+        meta - A dictionary with additional metadata. This is used to provide context in error handling and can
+               contain e.g. file names of the original documents to help users find errors in configuration
+        """
         if not JmespandRoot._isdict(doc):
             raise ValueError("Can only add dictionaries to a JmespandRoot")
         self._docs.append((doc, meta))
 
     def expanded(self, scope=None):
+        """Expands the root into a plain dictionary.
+
+        scope - Additional scope, in case the object is not fully resolvable (or even if it is, scope overrides document-defined properties)
+        """
         ret = self._merged()
         if scope:
             rscope = dict(ret)
@@ -48,7 +65,7 @@ class JmespandRoot(object):
                     exctype, exc = sys.exc_info()[:2]
                     s = [''.join(exc.args), " when expanding '" + str(d)+ "'"]
                     v = JmespandRoot._getcontext(d)
-                    if v: s.append(v)
+                    if v: s.append(' ' + v)
                     ex = exctype(''.join(s))
                     
                     if sys.version_info[0] < 3:
@@ -74,7 +91,7 @@ class JmespandRoot(object):
                 for k, v in meta.items():
                     if k == "keypath": continue
                     if v:
-                        s.append(str(k) + " " + str(filename))
+                        s.append(str(k) + " " + str(v))
         if not s:
             return ''
         return '(' + ', '.join(s) + ')'
@@ -114,6 +131,11 @@ class JmespandRoot(object):
 
 
 def create_root(*args):
+    """Creates a new root object
+
+    args - The documents to include in the root. A document in this case is a dict object, usually loaded
+           from a serialization format such as JSON or YAML.
+    """
     root = JmespandRoot()
     for arg in args:
         root.add(arg)

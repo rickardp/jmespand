@@ -44,6 +44,12 @@ class RootTests(unittest.TestCase):
         ret = root.expanded()
         self.assertEqual({"Value": 42, "Hello": '42'}, ret)
 
+    def test_expand_escape_sequence(self):
+        d = {"Value": 42, "Hello": "{{Value}}"}
+        root = jmespand.create_root(d)
+        ret = root.expanded()
+        self.assertEqual({"Value": 42, "Hello": '{Value}'}, ret)
+
     def test_expand_nested(self):
         d = {"Value": "{Hello.World}", "Hello":{"World":42}}
         root = jmespand.create_root(d)
@@ -80,4 +86,24 @@ class RootTests(unittest.TestCase):
         parms = {"X": 42, "Y": 43, "Value2": 3}
         ret = root.expanded(parms)
         self.assertEqual({"Value": "42", "Hello": "43", "World": "42", "Value2": "42", "Test": "3"}, ret)
+
+    def test_error_handling_with_meta(self):
+        d = {"Value": 42, "Hello": "{World}"}
+        root = jmespand.create_root()
+        root.add(d, meta={"file":"test.json"})
+        try:
+            ret = root.expanded()
+            self.assertFalse(True, "Did not throw")
+        except KeyError as ke:
+            self.assertIn("file test.json", str(ke))
+
+    def test_error_handling_with_meta_multi(self):
+        root = jmespand.create_root()
+        root.add({"Value": 42, "Hello": "{Hello2}"}, meta={"file":"test.json"})
+        root.add({"Hello2": "{Nonexisting}"}, meta={"file":"test2.json"})
+        try:
+            ret = root.expanded()
+            self.assertFalse(True, "Did not throw")
+        except KeyError as ke:
+            self.assertIn("file test2.json", str(ke))
             
